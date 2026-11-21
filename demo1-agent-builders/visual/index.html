@@ -1,0 +1,318 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Stale Polaroid</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a presenter stage. Memory store on the left (the wall of Polaroids), the chat on the right. One step per strategy. */
+:root{
+  --bg:#edecec; --panel:#fffdf8; --ink:#2b1b17; --muted:#6b5a52; --line:#d9d2cc;
+  --maroon:#7a0000; --green:#1f4d3a; --cream:#f6e3c0; --amber:#a86a00;
+  --bar:#cbbfb6; --hit:#7a0000; --userb:#2b1b17; --userf:#f6e3c0; --botb:#ffffff;
+  --ok:#1f6b45; --okbg:#e3f1e8; --bad:#a3201a; --badbg:#fbe9e7; --meh:#8a5a00; --mehbg:#fbf0dc;
+  --display:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1a1311; --panel:#241b18; --ink:#f3e9e2; --muted:#b9a79d; --line:#3d302b;
+  --maroon:#e0605a; --green:#6fbf95; --cream:#f6e3c0; --amber:#e3a63a;
+  --bar:#4a3b35; --hit:#e0605a; --userb:#f6e3c0; --userf:#2b1b17; --botb:#2f2420;
+  --ok:#7fd3a3; --okbg:#1d3328; --bad:#ff8a80; --badbg:#3a1f1c; --meh:#f0c06a; --mehbg:#3a2e18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1311; --panel:#241b18; --ink:#f3e9e2; --muted:#b9a79d; --line:#3d302b;
+  --maroon:#e0605a; --green:#6fbf95; --cream:#f6e3c0; --amber:#e3a63a;
+  --bar:#4a3b35; --hit:#e0605a; --userb:#f6e3c0; --userf:#2b1b17; --botb:#2f2420;
+  --ok:#7fd3a3; --okbg:#1d3328; --bad:#ff8a80; --badbg:#3a1f1c; --meh:#f0c06a; --mehbg:#3a2e18; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:1440px;margin:0 auto;padding-block:20px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;flex-direction:column;gap:2px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--maroon)}
+h1{font-family:var(--display);font-size:clamp(24px,3vw,36px);margin:0;line-height:1.1;text-wrap:balance}
+.steps{display:flex;flex-wrap:wrap;gap:6px}
+.steps button{font:600 13px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:7px 12px;border-radius:999px;cursor:pointer}
+.steps button[aria-current="step"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.steps button:focus-visible,.btn:focus-visible,.guess button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+.stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.panel h2{font-family:var(--display);font-size:18px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+.formula{font-family:var(--mono);font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:inline-block;margin-bottom:12px}
+
+.mem{display:flex;flex-direction:column;gap:8px}
+.row{display:grid;grid-template-columns:92px minmax(0,1fr) 150px;gap:12px;align-items:center;padding:9px 10px;border-radius:10px;border:1px solid transparent;transition:background .3s,border-color .3s,opacity .3s}
+@media (max-width:560px){.row{grid-template-columns:1fr}}
+.row .date{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row .txt{font-size:15px;min-width:0}
+.row .tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px;padding:1px 6px;border-radius:4px;vertical-align:2px}
+.tag.stale{background:var(--badbg);color:var(--bad)}
+.tag.fresh{background:var(--okbg);color:var(--ok)}
+.meter{display:flex;align-items:center;gap:8px}
+.track{flex:1;height:10px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.fill{display:block;height:100%;width:0;background:var(--bar);border-radius:6px;transition:width .6s ease}
+.score{font-family:var(--mono);font-size:13px;width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.row.hit{background:color-mix(in srgb,var(--hit) 8%,transparent);border-color:color-mix(in srgb,var(--hit) 45%,transparent)}
+.row.hit .fill{background:var(--hit)}
+.row.dim{opacity:.45}
+.rank{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--hit);color:var(--bg);font:700 11px var(--mono);margin-right:6px;vertical-align:1px}
+
+.facts{width:100%;border-collapse:collapse;font-size:15px}
+.facts th,.facts td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+.facts th{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.facts td.k{font-family:var(--mono)}
+.facts tr.old td{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--bad)}
+.pill{font-family:var(--mono);font-size:12px;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.cur{background:var(--okbg);color:var(--ok)}
+.pill.until{background:var(--badbg);color:var(--bad);text-decoration:none;display:inline-block}
+.sql{font-family:var(--mono);font-size:13px;margin-top:12px;color:var(--muted)}
+
+.chat{display:flex;flex-direction:column;gap:12px}
+.bubble{max-width:88%;padding:12px 16px;border-radius:16px;font-size:17px}
+.user{align-self:flex-end;background:var(--userb);color:var(--userf);border-bottom-right-radius:4px;font-weight:500}
+.bot{align-self:flex-start;background:var(--botb);border:1px solid var(--line);border-bottom-left-radius:4px}
+.who{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.ctx{border:1px dashed var(--line);border-radius:12px;padding:12px}
+.ctx .who{margin-bottom:8px}
+.chips{display:flex;flex-direction:column;gap:6px}
+.chip{font-size:14px;padding:6px 10px;border-radius:8px;background:var(--bg);border-left:4px solid var(--bar)}
+.chip.stale{border-left-color:var(--bad)}
+.chip.fresh{border-left-color:var(--ok)}
+.chip.noise{border-left-color:var(--amber)}
+.guess{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:color-mix(in srgb,var(--amber) 10%,transparent);border:1px solid color-mix(in srgb,var(--amber) 35%,transparent)}
+.guess strong{font-family:var(--display);font-size:18px}
+.guess .opts{display:flex;flex-wrap:wrap;gap:8px}
+.guess button{font:600 15px var(--body);padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.guess button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.verdict{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;font-size:15px}
+.verdict.ok{background:var(--okbg);color:var(--ok)}
+.verdict.bad{background:var(--badbg);color:var(--bad)}
+.verdict.meh{background:var(--mehbg);color:var(--meh)}
+.verdict b{font-family:var(--display);font-size:18px}
+.yourguess{font-size:14px;color:var(--muted)}
+.ghajini{font-style:italic;font-weight:600;color:var(--maroon);font-size:16px}
+.note{font-size:12px;color:var(--muted)}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.btn{font:600 15px var(--body);padding:10px 18px;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:default}
+.keys{font-size:13px;color:var(--muted)}
+kbd{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel)}
+
+.board{width:100%;border-collapse:collapse;font-size:16px}
+.board th,.board td{padding:12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.board th{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.board td:first-child{font-family:var(--display);font-weight:700}
+.tablebox{overflow-x:auto}
+body.shot .controls{display:none}
+.fadein{animation:fade .45s ease both}
+@keyframes fade{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){body.shot .controls{display:none}
+.fadein{animation:none}.fill,.row{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="eyebrow">Live demo 1 · agent builders</span>
+      <h1 id="title">The stale Polaroid</h1>
+    </div>
+    <nav class="steps" id="steps" aria-label="Demo steps"></nav>
+  </header>
+
+  <main class="stage">
+    <section class="panel" id="left" aria-live="polite"></section>
+    <section class="panel chat" id="right" aria-live="polite"></section>
+  </main>
+
+  <div class="controls">
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn ghost" id="prev">← Back</button>
+      <button class="btn" id="reveal">Reveal answer</button>
+      <button class="btn ghost" id="next">Next →</button>
+    </div>
+    <span class="keys"><kbd>←</kbd> <kbd>→</kbd> move · <kbd>Space</kbd> reveal · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pick the room's guess</span>
+  </div>
+</div>
+
+<script>
+// Scores are the real output of stale_polaroid.py (same embedding, beta 0.5, half-life 180 days, today 2026-11-20).
+const MEM = [
+  {id:0,date:"2024-03-01",text:"I live in Delhi, near Connaught Place. I love where I live, the street food here is the best.",sem:.588,rec:.022,hyb:.599,kind:"stale"},
+  {id:1,date:"2024-06-11",text:"My son is allergic to peanuts, please never suggest peanut dishes.",sem:0,rec:.032,hyb:.016,kind:"fact"},
+  {id:2,date:"2025-01-20",text:"Where I live in Delhi, winters are smoggy. I live with my family of four.",sem:.671,rec:.076,hyb:.709,kind:"stale"},
+  {id:3,date:"2025-08-02",text:"I'm vegetarian, I stopped eating meat this year.",sem:0,rec:.161,hyb:.080,kind:"fact"},
+  {id:4,date:"2026-09-12",text:"We moved to Pune last week.",sem:.408,rec:.767,hyb:.792,kind:"fresh"},
+  {id:5,date:"2026-11-19",text:"Can you book a team dinner for 6 tomorrow?",sem:0,rec:.996,hyb:.498,kind:"noise"},
+  {id:6,date:"2026-11-20",text:"I'm starving right now.",sem:0,rec:1,hyb:.5,kind:"noise"},
+];
+const OPTS = ["Delhi","Pune","It won't know"];
+
+const STEPS = [
+  {key:"intro", tab:"The question"},
+  {key:"sem", tab:"1 · Semantic", name:"Semantic search", formula:"embed(question) → top 3 by cosine similarity",
+   sub:"What most teams ship first: a vector database.", max:.8,
+   answer:"You live in Delhi, near Connaught Place. Enjoy the street food!",
+   verdict:"bad", vtitle:"Wrong. It said Delhi.",
+   why:"It did find “We moved to Pune”. It just ranked two old Delhi messages above it, because they look more like the question.",
+   ghajini:"Ghajini: Sanjay trusts the Polaroid that looks most like the question, not the newest one."},
+  {key:"rec", tab:"2 · Time-based", name:"Time-based", formula:"ORDER BY date DESC LIMIT 3",
+   sub:"Newest first. Cheap and fast.", max:1,
+   answer:"You're in Pune! And since you're starving, want me to book that dinner for 6?",
+   verdict:"meh", vtitle:"Right, by luck.",
+   why:"Pune made the cut only because nothing else happened that week. Ask “Is my son allergic to anything?” and the peanut allergy is nowhere in the top 3.",
+   ghajini:"Ghajini: Sanjay remembers the last fifteen minutes perfectly. Everything before that is gone."},
+  {key:"hyb", tab:"3 · Hybrid", name:"Hybrid", formula:"cosine + 0.5 × 0.5^(age ÷ 180 days)",
+   sub:"Meaning plus a freshness bonus.", max:.8,
+   answer:"You moved to Pune recently. Before that you lived in Delhi, near Connaught Place, so it depends which one you mean.",
+   verdict:"meh", vtitle:"Mostly right, but it hedges.",
+   why:"Pune is now first, but both stale Delhi messages still go into the prompt. The model sees a contradiction and you pay tokens for it.",
+   ghajini:"Ghajini: a newer Polaroid on top of the pile, with the old ones still underneath."},
+  {key:"wb", tab:"4 · Write-back", name:"Write-back", formula:"SELECT value FROM facts WHERE key='city' AND until IS NULL",
+   sub:"Extract facts as they arrive. Supersede old values, never delete them.",
+   answer:"You live in Pune. You moved there from Delhi in September 2026.",
+   verdict:"ok", vtitle:"Right, and it knows why.",
+   why:"One current fact goes into the prompt. History is kept, so “Where did I live last year?” still answers Delhi.",
+   ghajini:"Ghajini: Sanjay doesn't tear out old pages. He crosses them out and writes the new truth below."},
+  {key:"board", tab:"Scoreboard"},
+];
+
+let step = 0;
+const guesses = {};   // step key -> option index
+const revealed = {};  // step key -> bool
+
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function topK(key){
+  if(key==="rec") return [...MEM].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3).map(m=>m.id);
+  return [...MEM].sort((a,b)=>b[key]-a[key]).slice(0,3).map(m=>m.id);
+}
+function tagFor(m){
+  if(m.kind==="stale") return '<span class="tag stale">stale</span>';
+  if(m.kind==="fresh") return '<span class="tag fresh">new</span>';
+  return "";
+}
+
+function renderSteps(){
+  $("#steps").innerHTML = STEPS.map((s,i)=>`<button type="button" data-i="${i}" ${i===step?'aria-current="step"':''}>${s.tab}</button>`).join("");
+  $("#steps").querySelectorAll("button").forEach(b=>b.onclick=()=>go(+b.dataset.i));
+}
+
+function memoryList(key, max){
+  const hits = key ? topK(key) : [];
+  const rows = MEM.map(m=>{
+    const rank = hits.indexOf(m.id);
+    const val = key ? m[key] : 0;
+    const pct = key ? Math.min(100, (val/max)*100) : 0;
+    const label = !key ? "" : key==="rec" ? (rank>=0? "#"+(rank+1) : "") : val.toFixed(2);
+    return `<div class="row ${key? (rank>=0?'hit':'dim') : ''}">
+      <span class="date">${m.date}</span>
+      <span class="txt">${rank>=0?`<span class="rank">${rank+1}</span>`:""}${esc(m.text)}${tagFor(m)}</span>
+      <span class="meter">${key?`<span class="track"><span class="fill" data-w="${pct}"></span></span><span class="score">${label}</span>`:""}</span>
+    </div>`;
+  }).join("");
+  return `<div class="mem">${rows}</div>`;
+}
+
+function guessBlock(s){
+  const g = guesses[s.key];
+  return `<div class="guess">
+    <strong>${s.key==="intro" ? "What will the AI answer?" : "Room, what will it answer this time?"}</strong>
+    <div class="opts">${OPTS.map((o,i)=>`<button type="button" data-g="${i}" aria-pressed="${g===i}">${o}</button>`).join("")}</div>
+  </div>`;
+}
+
+function render(){
+  const s = STEPS[step];
+  renderSteps();
+  $("#prev").disabled = step===0;
+  $("#next").disabled = step===STEPS.length-1;
+  const canReveal = !["intro","board"].includes(s.key);
+  $("#reveal").hidden = !canReveal;
+  $("#reveal").textContent = revealed[s.key] ? "Hide answer" : "Reveal answer";
+
+  const L = $("#left"), R = $("#right");
+
+  if(s.key==="intro"){
+    $("#title").textContent = "The stale Polaroid";
+    L.innerHTML = `<h2>The agent's memory</h2><p class="sub">Seven things this user said over two years. All of it is stored.</p>${memoryList(null)}`;
+    R.innerHTML = `<div class="bubble user"><div class="who" style="color:inherit;opacity:.7">User · today</div>Where do I live?</div>
+      <div class="ctx"><div class="who">Truth</div><div style="font-size:16px">They moved to <b>Pune</b> in September. Every message is in memory.</div></div>
+      ${guessBlock(s)}
+      <p class="note">Same question, four ways to retrieve memory. Press → to try the first one.</p>`;
+  }
+  else if(s.key==="board"){
+    $("#title").textContent = "Same memory, four answers";
+    L.innerHTML = `<h2>Scoreboard</h2><p class="sub">The model never changed. Only what we put in front of it did.</p>
+      <div class="tablebox"><table class="board">
+        <thead><tr><th>Strategy</th><th>Answer</th><th>Stale memories in prompt</th></tr></thead>
+        <tbody>
+          <tr><td>Semantic</td><td><span class="pill until">Delhi ✗</span></td><td>2 of 3</td></tr>
+          <tr><td>Time-based</td><td><span class="pill" style="background:var(--mehbg);color:var(--meh)">Pune, by luck</span></td><td>0, but 2 of 3 are noise</td></tr>
+          <tr><td>Hybrid</td><td><span class="pill" style="background:var(--mehbg);color:var(--meh)">Pune, hedged</span></td><td>2 of 3</td></tr>
+          <tr><td>Write-back</td><td><span class="pill cur">Pune ✓</span></td><td>0</td></tr>
+        </tbody></table></div>`;
+    R.innerHTML = `<div class="verdict bad"><b>At scale: 15,070 memories, 500 questions</b>Semantic search found the new fact 98% of the time, and ranked it above the stale one 0% of the time.</div>
+      <div class="bubble bot"><div class="who">Takeaway</div>Your agent didn't forget the update. It trusted the wrong Polaroid.</div>
+      <p class="ghajini">Don't be Ghajini. Write it down, version it, and read it back.</p>
+      <p class="note">Run it yourself: <code>python3 stale_polaroid.py</code> in agent-memory-kit/demo1-agent-builders.</p>`;
+  }
+  else {
+    $("#title").textContent = s.name;
+    if(s.key==="wb"){
+      L.innerHTML = `<p class="sub">${s.sub}</p><span class="formula">${esc(s.formula)}</span>
+        <div class="tablebox"><table class="facts">
+          <thead><tr><th>key</th><th>value</th><th>since</th><th>state</th></tr></thead>
+          <tbody>
+            <tr><td class="k">allergy (son)</td><td>peanuts</td><td>2024-06-11</td><td><span class="pill cur">current</span></td></tr>
+            <tr class="old"><td class="k">city</td><td>Delhi</td><td>2024-03-01</td><td><span class="pill until">until 2026-09-12</span></td></tr>
+            <tr><td class="k">city</td><td><b>Pune</b></td><td>2026-09-12</td><td><span class="pill cur">current</span></td></tr>
+            <tr><td class="k">diet</td><td>vegetarian</td><td>2025-08-02</td><td><span class="pill cur">current</span></td></tr>
+          </tbody></table></div>
+        <p class="sql">Moods (“I'm starving”) and requests (the dinner) never become facts.</p>`;
+    } else {
+      L.innerHTML = `<p class="sub">${s.sub}</p><span class="formula">${esc(s.formula)}</span>${memoryList(s.key, s.max)}`;
+    }
+    const ctx = s.key==="wb"
+      ? `<div class="chip fresh">city: Pune (since 2026-09-12)</div>`
+      : topK(s.key).map(id=>{const m=MEM[id];const c=m.kind==="stale"?"stale":m.kind==="fresh"?"fresh":"noise";return `<div class="chip ${c}">${esc(m.text)}</div>`}).join("");
+    const g = guesses[s.key];
+    const rev = revealed[s.key];
+    R.innerHTML = `<div class="bubble user"><div class="who" style="color:inherit;opacity:.7">User</div>Where do I live?</div>
+      <div class="ctx"><div class="who">What the model sees · retrieved memory</div><div class="chips">${ctx}</div></div>
+      ${rev ? `
+        <div class="bubble bot fadein"><div class="who">AI</div>${esc(s.answer)}</div>
+        <div class="verdict ${s.verdict} fadein"><b>${s.vtitle}</b>${esc(s.why)}</div>
+        ${g!==undefined?`<div class="yourguess fadein">The room guessed: <b>${OPTS[g]}</b></div>`:""}
+        <p class="ghajini fadein">${esc(s.ghajini)}</p>
+        <p class="note">AI reply is a typical answer for this retrieved context.</p>`
+      : guessBlock(s)}`;
+  }
+
+  R.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{guesses[s.key]=+b.dataset.g;render();});
+  requestAnimationFrame(()=>document.querySelectorAll(".fill").forEach(f=>f.style.width=f.dataset.w+"%"));
+}
+
+function go(i){ step=Math.max(0,Math.min(STEPS.length-1,i)); render(); }
+function toggleReveal(){ const s=STEPS[step]; if(["intro","board"].includes(s.key)) return; revealed[s.key]=!revealed[s.key]; render(); }
+
+$("#prev").onclick=()=>go(step-1);
+$("#next").onclick=()=>go(step+1);
+$("#reveal").onclick=toggleReveal;
+document.addEventListener("keydown",e=>{
+  if(e.target.closest("input,textarea")) return;
+  if(e.key==="ArrowRight"){go(step+1);e.preventDefault();}
+  else if(e.key==="ArrowLeft"){go(step-1);e.preventDefault();}
+  else if(e.key===" "){toggleReveal();e.preventDefault();}
+  else if(["1","2","3"].includes(e.key)){const s=STEPS[step]; if(s.key!=="board" && !revealed[s.key]){guesses[s.key]=+e.key-1;render();}}
+});
+if(location.hash==="#shot")document.body.classList.add("shot");
+render();
+</script>

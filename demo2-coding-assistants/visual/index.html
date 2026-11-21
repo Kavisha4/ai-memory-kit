@@ -1,0 +1,261 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Write the Rules Once</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a presenter stage. Memory store on the left (the wall of Polaroids), the chat on the right. One step per strategy. */
+:root{
+  --bg:#edecec; --panel:#fffdf8; --ink:#2b1b17; --muted:#6b5a52; --line:#d9d2cc;
+  --maroon:#7a0000; --green:#1f4d3a; --cream:#f6e3c0; --amber:#a86a00;
+  --bar:#cbbfb6; --hit:#7a0000; --userb:#2b1b17; --userf:#f6e3c0; --botb:#ffffff;
+  --ok:#1f6b45; --okbg:#e3f1e8; --bad:#a3201a; --badbg:#fbe9e7; --meh:#8a5a00; --mehbg:#fbf0dc;
+  --display:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1a1311; --panel:#241b18; --ink:#f3e9e2; --muted:#b9a79d; --line:#3d302b;
+  --maroon:#e0605a; --green:#6fbf95; --cream:#f6e3c0; --amber:#e3a63a;
+  --bar:#4a3b35; --hit:#e0605a; --userb:#f6e3c0; --userf:#2b1b17; --botb:#2f2420;
+  --ok:#7fd3a3; --okbg:#1d3328; --bad:#ff8a80; --badbg:#3a1f1c; --meh:#f0c06a; --mehbg:#3a2e18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1311; --panel:#241b18; --ink:#f3e9e2; --muted:#b9a79d; --line:#3d302b;
+  --maroon:#e0605a; --green:#6fbf95; --cream:#f6e3c0; --amber:#e3a63a;
+  --bar:#4a3b35; --hit:#e0605a; --userb:#f6e3c0; --userf:#2b1b17; --botb:#2f2420;
+  --ok:#7fd3a3; --okbg:#1d3328; --bad:#ff8a80; --badbg:#3a1f1c; --meh:#f0c06a; --mehbg:#3a2e18; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{max-width:1440px;margin:0 auto;padding-block:20px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;flex-direction:column;gap:2px}
+.eyebrow{font-family:var(--body);font-size:16px;font-weight:600;letter-spacing:0;color:var(--maroon)}
+h1{font-family:var(--display);font-size:clamp(24px,3vw,36px);margin:0;line-height:1.1;text-wrap:balance}
+.steps{display:flex;flex-wrap:wrap;gap:6px}
+.steps button{font:600 13px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:7px 12px;border-radius:999px;cursor:pointer}
+.steps button[aria-current="step"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.steps button:focus-visible,.btn:focus-visible,.guess button:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+.stage{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.stage{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.panel h2{font-family:var(--display);font-size:18px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+.formula{font-family:var(--mono);font-size:14px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:inline-block;margin-bottom:12px}
+
+.mem{display:flex;flex-direction:column;gap:8px}
+.row{display:grid;grid-template-columns:92px minmax(0,1fr) 150px;gap:12px;align-items:center;padding:9px 10px;border-radius:10px;border:1px solid transparent;transition:background .3s,border-color .3s,opacity .3s}
+@media (max-width:560px){.row{grid-template-columns:1fr}}
+.row .date{font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row .txt{font-size:15px;min-width:0}
+.row .tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px;padding:1px 6px;border-radius:4px;vertical-align:2px}
+.tag.stale{background:var(--badbg);color:var(--bad)}
+.tag.fresh{background:var(--okbg);color:var(--ok)}
+.meter{display:flex;align-items:center;gap:8px}
+.track{flex:1;height:10px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+.fill{display:block;height:100%;width:0;background:var(--bar);border-radius:6px;transition:width .6s ease}
+.score{font-family:var(--mono);font-size:13px;width:44px;text-align:right;font-variant-numeric:tabular-nums}
+.row.hit{background:color-mix(in srgb,var(--hit) 8%,transparent);border-color:color-mix(in srgb,var(--hit) 45%,transparent)}
+.row.hit .fill{background:var(--hit)}
+.row.dim{opacity:.45}
+.rank{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--hit);color:var(--bg);font:700 11px var(--mono);margin-right:6px;vertical-align:1px}
+
+.facts{width:100%;border-collapse:collapse;font-size:15px}
+.facts th,.facts td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+.facts th{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.facts td.k{font-family:var(--mono)}
+.facts tr.old td{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--bad)}
+.pill{font-family:var(--mono);font-size:12px;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.cur{background:var(--okbg);color:var(--ok)}
+.pill.until{background:var(--badbg);color:var(--bad);text-decoration:none;display:inline-block}
+.sql{font-family:var(--mono);font-size:13px;margin-top:12px;color:var(--muted)}
+
+.chat{display:flex;flex-direction:column;gap:12px}
+.bubble{max-width:88%;padding:12px 16px;border-radius:16px;font-size:17px}
+.user{align-self:flex-end;background:var(--userb);color:var(--userf);border-bottom-right-radius:4px;font-weight:500}
+.bot{align-self:flex-start;background:var(--botb);border:1px solid var(--line);border-bottom-left-radius:4px}
+.who{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.ctx{border:1px dashed var(--line);border-radius:12px;padding:12px}
+.ctx .who{margin-bottom:8px}
+.chips{display:flex;flex-direction:column;gap:6px}
+.chip{font-size:14px;padding:6px 10px;border-radius:8px;background:var(--bg);border-left:4px solid var(--bar)}
+.chip.stale{border-left-color:var(--bad)}
+.chip.fresh{border-left-color:var(--ok)}
+.chip.noise{border-left-color:var(--amber)}
+.guess{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;background:color-mix(in srgb,var(--amber) 10%,transparent);border:1px solid color-mix(in srgb,var(--amber) 35%,transparent)}
+.guess strong{font-family:var(--display);font-size:18px}
+.guess .opts{display:flex;flex-wrap:wrap;gap:8px}
+.guess button{font:600 15px var(--body);padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.guess button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.verdict{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;font-size:15px}
+.verdict.ok{background:var(--okbg);color:var(--ok)}
+.verdict.bad{background:var(--badbg);color:var(--bad)}
+.verdict.meh{background:var(--mehbg);color:var(--meh)}
+.verdict b{font-family:var(--display);font-size:18px}
+.yourguess{font-size:14px;color:var(--muted)}
+.ghajini{font-style:italic;font-weight:600;color:var(--maroon);font-size:16px}
+.note{font-size:12px;color:var(--muted)}
+
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.btn{font:600 15px var(--body);padding:10px 18px;border-radius:10px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:default}
+.keys{font-size:13px;color:var(--muted)}
+kbd{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--panel)}
+
+.board{width:100%;border-collapse:collapse;font-size:16px}
+.board th,.board td{padding:12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.board th{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.board td:first-child{font-family:var(--display);font-weight:700}
+.tablebox{overflow-x:auto}
+body.shot .controls{display:none}
+.fadein{animation:fade .45s ease both}
+@keyframes fade{from{opacity:.0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){body.shot .controls{display:none}
+.fadein{animation:none}.fill,.row{transition:none}}
+.stack{display:flex;flex-direction:column;gap:12px}
+.code{background:#2b1b17;color:#f6e3c0;border-radius:10px;padding:12px 0;font-family:var(--mono);font-size:13.5px;line-height:1.55;overflow-x:auto}
+.code .l{display:flex;gap:10px;align-items:baseline;padding:0 14px;white-space:pre;min-height:1.55em}
+.code .l.hl{background:rgba(111,191,149,.18);box-shadow:inset 3px 0 0 #6fbf95}
+.code .l.bad{background:rgba(224,96,90,.2);box-shadow:inset 3px 0 0 #e0605a}
+.code .src{margin-left:auto;font-style:normal;font-family:var(--body);font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:#6fbf95;color:#16241c;white-space:nowrap}
+.code .l.bad .src{background:#e0605a;color:#2b0b09}
+.code .c{color:#b9a79d}
+.filehead{font-family:var(--mono);font-size:12px;color:var(--muted);margin:10px 0 6px;letter-spacing:.04em}
+.tree{font-family:var(--mono);font-size:14px;line-height:1.7;white-space:pre;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 14px;overflow-x:auto}
+.tree b{color:var(--maroon)}
+.term{align-self:stretch;background:#2b1b17;color:#f6e3c0;border-radius:12px;padding:12px 14px;font-family:var(--mono);font-size:14px;line-height:1.55}
+.term .p{color:#6fbf95}.term .d{color:#b9a79d}
+.tag2{display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.loaded{display:flex;flex-direction:column;gap:8px}
+.loaded .it{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-family:var(--mono);font-size:14px}
+.loaded .it.new{border-color:color-mix(in srgb,var(--ok) 55%,transparent);background:var(--okbg)}
+.loaded .it.off{opacity:.45;border-style:dashed}
+.capsule{font-family:var(--mono);font-size:13px;line-height:1.55;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.chatlabel{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+</style>
+<div class="wrap">
+  <header><div class="brand"><span class="eyebrow">Demo 2 · Coding assistants</span><h1 id="title"></h1></div><nav class="steps" id="steps" aria-label="Demo steps"></nav></header>
+  <main class="stage"><section class="panel" id="left" aria-live="polite"></section><section class="panel chat" id="right" aria-live="polite"></section></main>
+  <div class="controls"><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn ghost" id="prev">← Back</button><button class="btn" id="reveal">Reveal answer</button><button class="btn ghost" id="next">Next →</button></div>
+  <span class="keys"><kbd>←</kbd> <kbd>→</kbd> move · <kbd>Space</kbd> reveal · <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> pick the room's guess</span></div>
+</div>
+<script>
+const L=(t,cls="",src="")=>`<div class="l ${cls}"><span>${t}</span>${src?`<em class="src">${src}</em>`:""}</div>`;
+const TREE=`sample-repo/
+├── <b>AGENTS.md</b>                      team rules, read by every tool
+├── <b>CLAUDE.md</b>                      "@AGENTS.md" + Claude-only notes
+├── .claude/rules/<b>api.md</b>           loads only for files in api/
+├── .github/<b>copilot-instructions.md</b>
+└── api/routes/orders.py`;
+const AGENTS=`<div class="filehead">AGENTS.md</div><div class="code">${[
+ L("# Order Service: agent instructions"),L(""),L("## Conventions"),
+ L("- Money is integer paise, never float.","hl","rule 1"),
+ L("- Every write endpoint takes an Idempotency-Key header.","hl","rule 2"),
+ L("- New endpoints go in api/routes/, one file per resource.")].join("")}</div>`;
+const APIRULE=`<div class="filehead">.claude/rules/api.md</div><div class="code">${[
+ L("---"),L("paths: [\"api/**/*.py\"]"),L("---"),
+ L("- Return 409 on a repeated Idempotency-Key with a different body.","hl","rule 3"),
+ L("- Log the order_id on every error.","hl","rule 4")].join("")}</div>`;
+const ASK=`<div class="bubble user"><div class="who" style="color:inherit;opacity:.7">You, in Claude Code</div>Add a refunds endpoint.</div>`;
+const NORULES=`<div class="filehead">api/routes/refunds.py · no rules file</div><div class="code">${[
+ L("def create_refund(request):"),L('    """POST /refunds"""'),L("    data = request.json"),
+ L('    amount = float(data["amount"])   <span class="c"># rupees as a float</span>',"bad","float money"),
+ L('    refund = Refund.create(order_id=data["order_id"], amount=amount)'),
+ L('    return refund.to_dict(), 201',"bad","no idempotency")].join("")}</div>`;
+const WITHRULES=`<div class="filehead">api/routes/refunds.py · with AGENTS.md</div><div class="code">${[
+ L("def create_refund(request):"),L('    """POST /refunds"""'),
+ L('    key = request.headers.get("Idempotency-Key")',"hl","rule 2"),
+ L('    if not key:'),L('        return {"error": "Idempotency-Key required"}, 400',"hl","rule 2"),
+ L('    data = request.json'),
+ L('    amount_paise = int(data["amount_paise"])',"hl","rule 1"),
+ L('    existing = Refund.find_by_key(key)'),
+ L('    if existing and existing.body_hash != hash_body(data):'),
+ L('        return {"error": "Idempotency-Key reused"}, 409',"hl","rule 3"),
+ L('    try:'),
+ L('        refund = Refund.create(order_id=data["order_id"],'),
+ L('                               amount_paise=amount_paise, key=key)'),
+ L('    except PaymentError:'),
+ L('        log.error("refund failed", order_id=data["order_id"])',"hl","rule 4"),
+ L('        raise'),
+ L('    return refund.to_dict(), 201')].join("")}</div>`;
+const MEMFILE=`<div class="filehead">~/.claude/projects/sample-repo/memory/MEMORY.md · written by Claude</div><div class="code">${[
+ L("# Project memory"),L(""),
+ L("- Refunds over ₹10,000 (1,000,000 paise) need manager approval.","hl","learned"),
+ L("  Source: user correction, 2026-11-20")].join("")}</div>`;
+const BULK=`<div class="filehead">api/routes/bulk_refunds.py · new session</div><div class="code">${[
+ L('APPROVAL_LIMIT = 10_000_00   <span class="c"># ₹10,000</span>',"hl","from memory"),L(""),
+ L("def create_bulk_refund(request):"),
+ L('    key = request.headers.get("Idempotency-Key")',"hl","rule 2"),
+ L('    for item in request.json["refunds"]:'),
+ L('        amount_paise = int(item["amount_paise"])',"hl","rule 1"),
+ L('        if amount_paise > APPROVAL_LIMIT and not approved(item):',"hl","from memory"),
+ L('            return {"error": "Manager approval needed"}, 403'),
+ L('    ...')].join("")}</div>`;
+const NOTE=`<p class="note">Illustration of a Claude Code session on the sample repo in agent-memory-kit/demo2-coding-assistants.</p>`;
+
+const STEPS=[
+{tab:"The setup",title:"Write the rules once",
+ left:`<p class="sub">A small payments repo. The team's rules live in plain text files inside the project.</p><div class="tree">${TREE}</div>${AGENTS}`,
+ right:`<div class="bubble bot"><div class="who">The problem</div>Every coding assistant starts each session knowing nothing about your team. Your rules exist only if they're written down where the tool reads them.</div>${ASK}`,
+ guess:{q:"We never mention the rules. Will it use paise and an Idempotency-Key?",opts:["Yes, both","Only one","Neither"]},
+ answer:`<div class="verdict meh"><b>Depends on one file.</b>Let's run it twice: once without AGENTS.md, once with it.</div>`},
+{tab:"1 · Without rules",title:"Without a rules file",
+ left:`<p class="sub">Same request, AGENTS.md deleted.</p>${NORULES}`,
+ right:ASK,
+ guess:{q:"How will it store the refund amount?",opts:["Integer paise","A float in rupees","It will ask me"]},
+ answer:`<div class="verdict bad"><b>A float, and no idempotency.</b>₹0.10 + ₹0.20 = ₹0.30000000000000004. A retry on a slow network refunds the customer twice.</div><p class="ghajini">Ghajini: no tattoos, so every morning he starts from zero.</p>`},
+{tab:"2 · With AGENTS.md",title:"With AGENTS.md",
+ left:`<p class="sub">Same request. This time the rules file is in the repo.</p>${WITHRULES}`,
+ right:ASK,
+ guess:{q:"Now will it follow the team rules?",opts:["Yes, all of them","Some of them","No"]},
+ answer:`<div class="verdict ok"><b>Yes, and two rules we never wrote in AGENTS.md.</b>Rule 1 and 2 come from AGENTS.md. Rules 3 and 4 (409 on a reused key, log the order_id) come from .claude/rules/api.md.</div><p class="ghajini">Ghajini: tattoos are the facts he reads every time he wakes up. That is your AGENTS.md.</p>`,
+ after:NOTE},
+{tab:"3 · Rules by folder",title:"Rules that load by folder",
+ left:`<p class="sub">Claude Code doesn't load every rule all the time. Path rules join only when they matter.</p>${APIRULE}<div class="filehead">What Claude has loaded</div><div class="loaded">
+  <div class="it"><span>CLAUDE.md → @AGENTS.md</span><span class="tag2">at start</span></div>
+  <div class="it"><span>~/.claude/…/MEMORY.md</span><span class="tag2">at start</span></div>
+  <div class="it new"><span>.claude/rules/api.md</span><span class="tag2">on opening api/</span></div></div>`,
+ right:`<div class="bubble user"><div class="who" style="color:inherit;opacity:.7">You</div>Fix a typo in the README.</div>`,
+ guess:{q:"Does the API rule load for a README change?",opts:["Yes, always","No, only for api/ files"]},
+ answer:`<div class="verdict ok"><b>No. Only when it touches api/.</b>Path-scoped rules keep the context window small: you pay for a rule only when it applies.</div><div class="term"><span class="p">&gt;</span> /memory<br><span class="d">Shows every memory file loaded in this session.</span></div>`},
+{tab:"4 · Correct it once",title:"Correct it once",
+ left:`<p class="sub">Session 1. You correct it, and it writes the correction to its own memory file.</p>${MEMFILE}`,
+ right:`<div class="bubble user"><div class="who" style="color:inherit;opacity:.7">Session 1 · you</div>Remember: refunds over ₹10,000 need manager approval.</div><div class="bubble bot"><div class="who">Claude Code</div>Got it. Saved to project memory.</div><div class="term"><span class="p">&gt;</span> /exit<br><span class="d">Session over. The context window is gone.</span></div>`},
+{tab:"5 · New session",title:"A brand-new session",
+ left:`<p class="sub">Session 2 starts empty. Only the memory files load.</p>${MEMFILE}<div class="filehead">What Claude has loaded</div><div class="loaded"><div class="it"><span>CLAUDE.md → @AGENTS.md</span><span class="tag2">at start</span></div><div class="it new"><span>~/.claude/…/MEMORY.md</span><span class="tag2">at start</span></div></div>`,
+ right:`<div class="term"><span class="p">$</span> claude <span class="d"># new session, empty context</span></div><div class="bubble user"><div class="who" style="color:inherit;opacity:.7">Session 2 · you</div>Add a bulk refunds endpoint.</div>`,
+ guess:{q:"New session. Will it remember the ₹10,000 rule?",opts:["Yes","No"]},
+ answer:`<div class="verdict ok"><b>Yes. Auto memory loaded it at start.</b>The first 200 lines of MEMORY.md load into every new session for this repo.</div>${BULK}`,
+ after:`<p class="ghajini">Ghajini: he writes a new note after every mistake, and reads it next time he wakes up.</p>`},
+{tab:"6 · Every tool",title:"Same file, every assistant",
+ left:`<p class="sub">How each tool remembers, as documented in November 2026.</p><div class="tablebox"><table class="board"><thead><tr><th>Tool</th><th>Reads</th><th>Remembers by itself</th></tr></thead><tbody>
+ <tr><td>Claude Code</td><td>CLAUDE.md, @AGENTS.md, .claude/rules</td><td>MEMORY.md, loaded every session</td></tr>
+ <tr><td>GitHub Copilot</td><td>copilot-instructions.md, AGENTS.md</td><td>Repo facts with code citations, expire after 28 days unused</td></tr>
+ <tr><td>Cursor</td><td>.cursor/rules, AGENTS.md</td><td>Rules files</td></tr>
+ <tr><td>Tabnine</td><td>Admin guidelines</td><td>Context Engine over MCP</td></tr></tbody></table></div>`,
+ right:`<div class="bubble bot"><div class="who">Takeaway</div>The index tells the agent where the code is. Only a file you write tells it why the code is that way.</div><div class="verdict ok"><b>GitHub's A/B test</b>Coding-agent PRs merged 90% of the time with memory, 83% without.</div><p class="ghajini">Write the rules once. Every assistant reads them.</p>`},
+];
+
+let step=0;const guesses={},revealed={};
+const $=s=>document.querySelector(s);
+function renderSteps(){$("#steps").innerHTML=STEPS.map((s,i)=>`<button type="button" data-i="${i}" ${i===step?'aria-current="step"':''}>${s.tab}</button>`).join("");$("#steps").querySelectorAll("button").forEach(b=>b.onclick=()=>go(+b.dataset.i));}
+function guessBlock(s){const g=guesses[step];return `<div class="guess"><strong>${s.guess.q}</strong><div class="opts">${s.guess.opts.map((o,i)=>`<button type="button" data-g="${i}" aria-pressed="${g===i}">${o}</button>`).join("")}</div></div>`;}
+function render(){const s=STEPS[step];renderSteps();
+ $("#prev").disabled=step===0;$("#next").disabled=step===STEPS.length-1;
+ $("#reveal").hidden=!s.guess;$("#reveal").textContent=revealed[step]?"Hide answer":"Reveal answer";
+ $("#title").textContent=s.title;
+ $("#left").innerHTML=s.left;
+ let r=s.right||"";
+ if(s.guess){ if(revealed[step]){ r+=`<div class="fadein stack">${s.answer}</div>`; if(guesses[step]!==undefined) r+=`<div class="yourguess fadein">The room guessed: <b>${s.guess.opts[guesses[step]]}</b></div>`; if(s.after) r+=`<div class="fadein stack">${s.after}</div>`;} else r+=guessBlock(s);} else if(s.answer) r+=s.answer;
+ $("#right").innerHTML=r;
+ $("#right").querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{guesses[step]=+b.dataset.g;render();});}
+function go(i){step=Math.max(0,Math.min(STEPS.length-1,i));render();}
+function toggleReveal(){if(!STEPS[step].guess)return;revealed[step]=!revealed[step];render();}
+$("#prev").onclick=()=>go(step-1);$("#next").onclick=()=>go(step+1);$("#reveal").onclick=toggleReveal;
+document.addEventListener("keydown",e=>{if(e.key==="ArrowRight"){go(step+1);e.preventDefault();}else if(e.key==="ArrowLeft"){go(step-1);e.preventDefault();}else if(e.key===" "){toggleReveal();e.preventDefault();}else if(/^[1-4]$/.test(e.key)){const s=STEPS[step];if(s.guess&&!revealed[step]&&+e.key<=s.guess.opts.length){guesses[step]=+e.key-1;render();}}});
+if(location.hash==="#shot")document.body.classList.add("shot");
+render();
+
+</script>

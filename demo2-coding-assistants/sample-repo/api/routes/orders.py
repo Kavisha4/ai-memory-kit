@@ -1,0 +1,3 @@
+def create_order(request):
+    """POST /orders. Ask the agent: 'add a refunds endpoint' and watch it follow the rules."""
+    ...
